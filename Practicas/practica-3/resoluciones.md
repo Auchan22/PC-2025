@@ -121,7 +121,7 @@
     ```
 
     c) Modifique la solución de (b) para el caso en que se deba dar prioridad de acuerdo con la edad de cada persona (cuando la fotocopiadora está libre la debe usar la persona de mayor edad entre las que estén esperando para usarla).
-        ```
+    ```
     Monitor Fotocopiadora{
         bool libre = true;
         cond cola[N];
@@ -151,7 +151,8 @@
 
     Process Persona[id = 0 to N-1]{
         Documento d;
-        Fotocopiadora.entrar();
+        boold edad = ...;
+        Fotocopiadora.entrar(id, edad);
         Fotocopiar(d);
         Fotocopiadora.salir();
     }
