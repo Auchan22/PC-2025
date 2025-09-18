@@ -159,7 +159,158 @@
     ```
 
     d) Modifique la solución de (a) para el caso en que se deba respetar estrictamente el orden dado por el identificador del proceso (la persona X no puede usar la fotocopiadora hasta que no haya terminado de usarla la persona X-1).
+    ```
+    Monitor Fotocopiadora{
+        cond cola[N];
+        int idSiguiente = 0;
+
+        Procedure usar(id: in int){
+            if(idSiguiente != id){
+                wait(cola[id]);
+            }
+        }
+
+        Procedure salir(){
+            idSiguiente++;
+            signal(cola[idSiguiente]);
+        }
+    }
+
+    Process Persona[id = 0 to N-1]{
+        Documento d;
+        Fotocopiadora.usar(id);
+        Fotocopiar(d);
+        Fotocopiadora.salir();
+    }
+    ```
 
     e) Modifique la solución de (b) para el caso en que además haya un Empleado que le indica a cada persona cuando debe usar la fotocopiadora.
+    ```
+    Monitor Fotocopiadora{
+        cond fin;
+        cond persona;
+        cond empleado;
+        int esperando = 0;
+
+        Procedure asignar(idP: in int){
+            if(esperando == 0){
+                wait(empleado);
+            }
+            esperando--;
+            signal(persona[idP]);
+            wait(fin);
+        
+        }
+
+        Procedure usar(){
+            signal(empleado);
+            esperando++;
+            wait(persona);
+        }
+
+        Procedure dejar(){
+            signal(fin);
+        }
+    }
+
+    Process Persona[id = 0 to N-1]{
+        Documento d;
+        Fotocopiadora.usar();
+        Fotocopiar(d);
+        Fotocopiadora.dejar();
+    }
+
+    Process Empleado{
+        int i;
+        for i = 0 to N-1 {
+            Fotocopiadora.asignar(i);
+        }
+    }
+    ```
 
     f) Modificar la solución (e) para el caso en que sean 10 fotocopiadoras. El empleado le indica a la persona cuál fotocopiadora usar y cuándo hacerlo.
+    ```
+    Monitor Fotocopiadora{
+        cola espera;
+        cola impresoras = {...}
+        cond fin;
+        cond persona;
+        cond empleado;
+        int esperando = 0;
+
+        Procedure asignar(idP: in int){
+            if(esperando == 0){
+                wait(empleado);
+            }else{
+                esperando--;
+                signal(persona[idP]);
+                wait(fin);
+            }
+        }
+
+        Procedure usar(){
+            signal(empleado);
+            esperando++;
+            wait(persona);
+        }
+
+        Procedure dejar(){
+            signal(fin);
+        }
+    }
+
+    Process Persona[id = 0 to N-1]{
+        Documento d;
+        Fotocopiadora fotocopiadoraAsignada;
+        Fotocopiadora.usar(fotocopiadoraAsignada);
+        Fotocopiar(d);
+        Fotocopiadora.dejar();
+    }
+
+    Process Empleado{
+        int i;
+        for i = 0 to N-1 {
+            Fotocopiadora.asignar(i);
+        }
+    }
+    ```
+
+4. Existen N vehículos que deben pasar por un puente de acuerdo con el orden de llegada. Considere que el puente no soporta más de 50000kg y que cada vehículo cuenta con su propio peso (ningún vehículo supera el peso soportado por el puente).
+    ```
+    int peso_soportado = 50000;
+    Monitor Puente{
+        int peso_total = 0;
+        cola autos;          // cola FIFO de autos esperando
+        cond[N] condAutos;
+        int idAux;
+
+        Procedure entrarPuente(peso, idA: in int) {
+            // me encolo para respetar orden
+            autos.push(idA);
+
+            // espero mi turno y que haya capacidad
+            while (peso_total + peso > 50000) {
+                wait(condAutos[idA]);
+            }
+
+            // entro efectivamente
+            peso_total += peso;
+            autos.pop();
+        }
+
+        Procedure salirPuente(peso: in int) {
+            peso_total -= peso;
+            idAux = autos.pop();
+
+            // despierto a todos para que reevalúen turno y peso
+            signal(condAutos[idAux]);
+        }
+    }
+
+    Process Auto [a:1..N]{
+        int peso = ...;
+        Puente.entrarPuente(peso);
+        “el auto cruza el puente”
+        Puente.salirPuente(peso);
+    }
+    ```
