@@ -730,3 +730,46 @@ expendedoras de agua con capacidad para 20 botellas. Además, existe un reposito
         }
     }
     ```
+
+10. En un parque hay un juego para ser usada por N personas de a una a la vez y de acuerdo al orden en que llegan para solicitar su uso. Además, hay un empleado encargado de desinfectar el juego durante 10 minutos antes de que una persona lo use. Cada persona al llegar espera hasta que el empleado le avisa que puede usar el juego, lo usa por un tiempo y luego lo devuelve. Nota: suponga que la persona tiene una función Usar_juego que simula el uso del juego; y el empleado una función Desinfectar_Juego que simula su trabajo. Todos los procesos deben terminar su ejecución. 
+    ```
+    Process Persona[id: 0..N-1]{
+        Juego.usar()
+        Usar_juego();
+        Juego.liberar()
+    }
+    Process Empleado {
+        while(true){
+            Desinfectar_juego();
+            Juego.listo();
+        }
+    }
+    Monitor Juego{
+        bool libre = true;
+        int esperando = 0;
+        cond eEmpleado, ePersona;
+
+        Procedure usar(){
+            if(not libre){
+                esperando++;
+                wait(ePersona);
+            }else{
+                libre = false;
+            }
+        }
+
+        Procedure liberar(){
+            signal(eEmpleado);
+        }
+
+        Procedure listo(){
+            if(esperando > 0){
+                esperando--;
+                signal(ePersona);
+            }else{
+                libre = true;
+            }
+            wait(eEmpleado);
+        }
+    }
+    ```
