@@ -199,4 +199,87 @@ Process Vendedor[id: 0..1]{
 
     **Nota**: maximizar la concurrencia; suponga que hay una función Cobrar() llamada por el empleado que simula que el empleado le cobra al cliente.
 
-5. 
+5. Resolver la administración de 3 impresoras de una oficina. Las impresoras son usadas por N administrativos, los cuales están continuamente trabajando y cada tanto envían documentos a imprimir. Cada impresora, cuando está libre, toma un documento y lo imprime, de acuerdo con el orden de llegada.
+   
+    a) Implemente una solución para el problema descrito.
+   
+       ```
+       chan documentos(text);
+       Process Administrativo[id: 0..N]{
+           while(true){
+               text doc = ...;
+               send documentos(doc);
+           }
+       }
+
+       Process Impresora[id: 0..2]{
+            while(true){
+               text doc;
+               receive documentos(doc)
+               _Imprimir(doc)_;
+           }
+       }
+       ```
+   
+    b) Modifique la solución implementada para que considere la presencia de un director de oficina que también usa las impresas, el cual tiene prioridad sobre los administrativos.
+
+       ```
+       chan documentosAdmin(text);
+       chan documentosDir(text);
+       chan aviso(bool);
+       Process Administrativo[id: 0..N]{
+           while(true){
+               text doc = ...;
+               send documentosAdmin(text);
+               send aviso(true);
+           }
+       }
+
+       Process Director[id: 0..N]{
+           while(true){
+               text doc = ...;
+               send documentosDir(text);
+               send aviso(true);
+           }
+       }
+
+       Process Impresora[id: 0..2]{
+           bool ok;
+            while(true){
+               receive aviso(ok);
+               text doc;
+               if(not empty(documentosDir)){
+                    receive documentosDir(doc);
+               }else if (not empty(documentosAdmin) and (empty(documentosDir))){
+                    receive documentosAdmin(doc);
+               }
+               _Imprimir(doc)_;
+           }
+       }
+       ```
+   
+    c) Modifique la solución (a) considerando que cada administrativo imprime 10 trabajos y que todos los procesos deben terminar su ejecución.
+
+       ```
+       chan documentos(text);
+       Process Administrativo[id: 0..N]{
+           while(true){
+               text doc = ...;
+               send documentos(doc);
+           }
+       }
+
+       Process Impresora[id: 0..2]{
+            while(true){
+               text doc;
+               receive documentos(doc)
+               _Imprimir(doc)_;
+           }
+       }
+       ```
+   
+    d) Modifique la solución (b) considerando que tanto el director como cada administrativo imprimen 10 trabajos y que todos los procesos deben terminar su ejecución.
+   
+    e) Si la solución al ítem d) implica realizar Busy Waiting, modifíquela para evitarlo.
+
+    Nota: ni los administrativos ni el director deben esperar a que se imprima el documento.
