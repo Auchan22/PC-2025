@@ -235,7 +235,7 @@ Process Vendedor[id: 0..1]{
            }
        }
 
-       Process Director[id: 0..N]{
+       Process Director{
            while(true){
                text doc = ...;
                send documentosDir(text);
@@ -262,24 +262,194 @@ Process Vendedor[id: 0..1]{
 
        ```
        chan documentos(text);
+       chan hayDocumento(bool);
+       chan esperaImpresion(text);
+       
        Process Administrativo[id: 0..N]{
-           while(true){
+           for int i:0..9{
                text doc = ...;
                send documentos(doc);
+               send hayDocumento(true); 
+           }
+       }
+
+       Process Coordinador{
+           bool ok;
+           text doc;
+           for int i: 0..((N*10)-1){
+               receive hayDocumento(ok);
+               receive documentos(doc);
+               send esperaImpresion(doc);
+           }
+           for i: 0..2 {
+                send esperaImpresion(null)
            }
        }
 
        Process Impresora[id: 0..2]{
-            while(true){
-               text doc;
-               receive documentos(doc)
-               _Imprimir(doc)_;
+           text doc;
+           receive esperaImpresion(doc);
+           while(doc != null){
+               Imprimir(doc);
+               receive esperaImpresion(doc);
            }
        }
        ```
    
     d) Modifique la solución (b) considerando que tanto el director como cada administrativo imprimen 10 trabajos y que todos los procesos deben terminar su ejecución.
+
+       ```
+       chan documentosAdmin(text);
+       chan documentosDir(text);
+       chan hayDocumento(bool);
+       chan esperaImpresion(text);
+       
+       Process Administrativo[id: 0..N]{
+           for int i:0..9{
+               text doc = ...;
+               send documentosAdmin(doc);
+               send hayDocumento(true); 
+           }
+       }
+
+       Process Director{
+           for int i:0..9{
+               text doc = ...;
+               send documentosDir(doc);
+               send hayDocumento(true); 
+           }
+       }
+
+       Process Coordinador{
+           bool ok;
+           text doc;
+           for int i: 0..((N*10)-1){
+               receive hayDocumento(ok);
+               text doc;
+               if(not empty(documentosDir)){
+                    receive documentosDir(doc);
+               }else if (not empty(documentosAdmin) and (empty(documentosDir))){
+                    receive documentosAdmin(doc);
+               }
+               send esperaImpresion(doc);
+           }
+           for i: 0..2 {
+                send esperaImpresion(null)
+           }
+       }
+
+       Process Impresora[id: 0..2]{
+           text doc;
+           receive esperaImpresion(doc);
+           while(doc != null){
+               Imprimir(doc);
+               receive esperaImpresion(doc);
+           }
+       }
+       ```
    
     e) Si la solución al ítem d) implica realizar Busy Waiting, modifíquela para evitarlo.
 
     Nota: ni los administrativos ni el director deben esperar a que se imprima el documento.
+
+### Pasaje de Mensajes Síncronicos
+
+1. Suponga que existe un antivirus distribuido que se compone de R procesos robots Examinadores y 1 proceso Analizador. Los procesos Examinadores están buscando continuamente posibles sitios web infectados; cada vez que encuentran uno avisan la dirección y luego continúan buscando. El proceso Analizador se encarga de hacer todas las pruebas necesarias con cada uno de los sitios encontrados por los robots para determinar si están o no infectados.
+   
+    a) Analice el problema y defina qué procesos, recursos y comunicaciones serán necesarios/convenientes para resolverlo.
+   
+    b) Implemente una solución con PMS sin tener en cuenta el orden de los pedidos.
+
+    ```
+    Process Examinador[id: 0..R-1]{
+        text sitio;
+        while true {
+            sitio = BuscarSitio();
+            Analizador?avisar(sitio);
+        }
+    }
+        
+    Process Analizador{
+        text sitio;
+        while(true){
+            Examinador[*]!avisar(sitio);
+            Analizar(sitio);
+        }
+    }
+    
+    ```
+   
+    c) Modifique el inciso (b) para que el Analizador resuelva los pedidos en el orden en que se hicieron.
+
+    ```
+    Process Examinador[id: 0..R-1]{
+        text sitio;
+        while(true){
+            sitio = BuscarSitio();
+            Administrador!find(sitio);
+        }
+    }
+        
+    Process Analizador{
+        text sitio;
+        while(true){
+            Administrador!pedido();
+            Administrador?send(sitio);
+            Analizar(sitio);
+        }
+    }
+    
+    Process Administrador{
+        cola Fila;
+        text sitio;
+        do Examinador[*]?find(sitio) -> push(Fila, sitio);
+        [] (not empty(Buffer)); Analizador?pedido() -> {
+            Fila.pop(sitio);
+            Analizador!send(sitio);
+        };
+    }
+    ```
+
+2. En un laboratorio de genética veterinaria hay 3 empleados. El primero de ellos continuamente prepara las muestras de ADN; cada vez que termina, se la envía al segundo empleado y vuelve a su trabajo. El segundo empleado toma cada muestra de ADN preparada, arma el set de análisis que se deben realizar con ella y espera el resultado para archivarlo. Por último, el tercer empleado se encarga de realizar el análisis y devolverle el resultado al segundo empleado.
+
+Dado que si usamos comunicación entre procesos, el proceso E1 debe esperar a que el E2 termine de recibir, por lo que estaría limitando su concurrencia. Se debe usar un Admin, que tenga un buffer.
+
+```
+Process E1 {
+    text muestra;
+    while (true) {
+        muestra = PrepararMuestra();
+        Admin!muestraLista(muestra);
+    }
+}
+
+Process E2 {
+    text m, set, analisis;
+    while(true){
+        Admin!aviso();
+        Admin?recibirMuestra(m);
+        set = ArmarSet(m);
+        E3!recibirSet(set);
+        E3?recibirAnalisis(analisis);
+        GuardarResultado(analisis);
+    }
+}
+
+Process E3 {
+    text s, a;
+    while(true){
+        E2?recibirSet(s);
+        a = ArmarAnalisis(s);
+        E2!recibirAnalisis(a);
+    }
+}
+
+Process Admin {
+    cola Buffer;
+    text m;
+
+    do E1?muestraLista(m) -> push(Buffer, m);
+    [] (not empty(Buffer)); E2?aviso(); -> E2!recibirMuestra(Buffer.pop());
+    od;
+}
+```
