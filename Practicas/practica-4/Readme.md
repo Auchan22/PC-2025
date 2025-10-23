@@ -453,3 +453,85 @@ Process Admin {
     od;
 }
 ```
+
+3. En un examen final hay N alumnos y P profesores. Cada alumno resuelve su examen, lo entrega y espera a que alguno de los profesores lo corrija y le indique la nota. Los profesores corrigen los exámenes respetando el orden en que los alumnos van entregando.
+      
+    a) Considerando que P=1.
+
+    ```
+    Process Alumno[id: 0..N-1]{
+        text e = ...;
+        int n;
+        text r = ResolverExamen(e);
+        Admin!entregaExamen(e, id);
+        Profesor?recibirNota(n);
+    }
+
+    Process Profesor{
+        text e;
+        int idA, n;
+        for int i: 0..N-1{
+            Admin!aviso();
+            Admin?corregir(e, idA);
+            n = CorregirExamen(e);
+            Alumno[idA]!recobirNota(n);
+        }
+    }
+
+    Process Admin{
+        cola Fila;
+        text e;
+        int idA;
+        do Alumno[*]?entregaExamen(e, idA); -> push(Fila, (e, idA));
+        [] (not (empty(Fila))); Profesor?aviso(); -> {
+            Fila.pop(e, idA);
+            Profesor!corregir(e, idA);
+        }
+        od;
+    }
+    ```
+   
+    b) Considerando que P>1.
+
+    ```
+    Process Alumno[id: 0..N-1]{
+        text e = ...;
+        int n;
+        text r = ResolverExamen(e);
+        Admin!entregaExamen(e, id);
+        Profesor[*]?recibirNota(n);
+    }
+
+    Process Profesor[id: 0..P-1]{
+        text e;
+        int idA, n;
+        Admin!aviso(id);
+        Admin?corregir(e, idA);
+        while(e != null){
+            n = CorregirExamen(e);
+            Alumno[idA]!recibirNota(n);
+            Admin!aviso(id);
+            Admin?corregir(e, idA);
+        }
+    }
+
+    Process Admin{
+        cola Fila;
+        text e;
+        int idA, idP;
+        do Alumno[*]?entregaExamen(e, idA); -> push(Fila, (e, idA));
+        [] (not (empty(Fila))); Profesor[*]?aviso(idP); -> {
+            Fila.pop(e, idA);
+            Profesor[idP]!corregir(e, idA);
+        }
+        od;
+        for int i: 0..P-1{
+            Profesor[*]?aviso(idP)
+            Profespr[idP]!corregir(null, -1);
+        }
+    }
+    ```
+   
+    c) Ídem b) pero considerando que los alumnos no comienzan a realizar su examen hasta que todos hayan llegado al aula.
+
+   Nota: maximizar la concurrencia; no generar demora innecesaria; todos los procesos deben terminar su ejecución
