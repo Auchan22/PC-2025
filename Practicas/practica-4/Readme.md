@@ -534,4 +534,126 @@ Process Admin {
    
     c) Ídem b) pero considerando que los alumnos no comienzan a realizar su examen hasta que todos hayan llegado al aula.
 
+    ```
+    Process Alumno[id: 0..N-1]{
+        text e = ...;
+        int n;
+        Barrera!llegada();
+        Barrera?empezar();
+        text r = ResolverExamen(e);
+        Admin!entregaExamen(e, id);
+        Profesor[*]?recibirNota(n);
+    }
+
+    Process Profesor[id: 0..P-1]{
+        text e;
+        int idA, n;
+        Admin!aviso(id);
+        Admin?corregir(e, idA);
+        while(e != null){
+            n = CorregirExamen(e);
+            Alumno[idA]!recibirNota(n);
+            Admin!aviso(id);
+            Admin?corregir(e, idA);
+        }
+    }
+
+    Process Admin{
+        cola Fila;
+        text e;
+        int idA, idP;
+        do Alumno[*]?entregaExamen(e, idA); -> push(Fila, (e, idA));
+        [] (not (empty(Fila))); Profesor[*]?aviso(idP); -> {
+            Fila.pop(e, idA);
+            Profesor[idP]!corregir(e, idA);
+        }
+        od;
+        for int i: 0..P-1{
+            Profesor[*]?aviso(idP)
+            Profespr[idP]!corregir(null, -1);
+        }
+    }
+
+    Process Barrera {
+        for int i: 0..N-1{
+            Alumno[*]?llegada();
+        }
+        for int i: 0..N-1{
+            Alumno[i]!empezar();
+        }
+    }
+    ```
+
    Nota: maximizar la concurrencia; no generar demora innecesaria; todos los procesos deben terminar su ejecución
+
+4. En una exposición aeronáutica hay un simulador de vuelo (que debe ser usado con exclusión mutua) y un empleado encargado de administrar su uso. Hay P personas que esperan a que el empleado lo deje acceder al simulador, lo usa por un rato y se retira.
+   
+   a) Implemente una solución donde el empleado sólo se ocupa de garantizar la exclusión mutua (sin importar el orden).
+
+    ```
+    Process Persona[id: 0..P-1]{
+        Empleado!llegar(id);
+        Empleado?usarMaquina();
+        UsarMaquina();
+        Empleado!avisarFin();
+    }
+    Process Empleado{
+        int idP;
+        for int i: 0..P-1{
+            Persona[*]?llegar(idP);
+            Persona[idP]!usarMaquina();
+            Persona[idP]?avisarFin();
+        }
+    }
+    ```
+   
+   b) Modifique la solución anterior para que el empleado los deje acceder según el orden de su identificador (hasta que la persona i no lo haya usado, la persona i+1 debe esperar).
+
+   ```
+   Process Persona[id: 0..P-1]{
+       Empleado!llegar();
+       Empleado?usarMaquina();
+       UsarMaquina();
+       Empleado!avisarFin();
+   }
+   Process Empleado{
+       int idP;
+       for int i: 0..P-1{
+           Persona[i]?llegar();
+           Persona[i]!usarMaquina();
+           Persona[i]?avisarFin();
+       }
+   }
+    ```
+   
+   c) Modifique la solución a) para que el empleado considere el orden de llegada para dar acceso al simulador.
+
+   ```
+    Process Persona[id: 0..P-1]{
+       Admin!llegar(id);
+       Empleado?usarMaquina();
+       UsarMaquina();
+       Empleado!avisarFin();
+    }
+    Process Admin{
+       int idP;
+       cola Fila;
+       int c = 0;
+       do (c < P); Persona[*]?llegar(idP); -> push(Fila, idP);
+       [] (not empty(Fila)); Empleado?libre(); -> {
+           Empleado!avisar(Fila.pop());
+           c++;
+       }
+    }
+    Process Empleado {
+       int idP;
+       for int i: 0..P-1{
+           Admin!libre();
+           Admin?avisar(idP);
+           Persona[idP]!usarMaquina();
+           Persona[idP]?avisarFin();
+       }
+    }
+    ```
+
+   Nota: cada persona usa sólo una vez el simulador. 
