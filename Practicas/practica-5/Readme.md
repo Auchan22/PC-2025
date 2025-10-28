@@ -283,5 +283,81 @@
    - Los procesos periféricos envían señales continuamente a la central. La señal del proceso 1 será considerada vieja (se deshecha) si en 2 minutos no fue recibida. Si la señal del proceso 2 no puede ser recibida inmediatamente, entonces espera 1 minuto y vuelve a mandarla (no se deshecha).
   
    ```ada
-   
+   Process Sistema IS
+
+      Task ProcesoA;
+      Task ProcesoB;
+      
+      Task Central IS
+         Entry SignalA(SA: IN int);
+         Entry SignalB(SB: IN int);
+         Entry OutOfTime();
+      END Central;
+
+      Task Contador IS
+         Entry start();
+      END Contador;
+      TASK BODY Contador IS
+      BEGIN
+         ACCEPT start();
+         DELAY 180.0;
+         Central.OutOfTime();
+      END Contador;
+
+      TASK BODY ProcesoA IS
+         SA: int;
+      BEGIN
+         LOOP
+            SA := crearSignal();
+            SELECT
+               Central.SiganlA(SA);
+            OR DELAY 120.0
+               NULL;
+            END SELECT;
+         END LOOP;
+      END ProcesoA;
+
+      TASK BODY ProcesoB IS
+         SB: int;
+      BEGIN
+         LOOP
+            SB := crearSignal();
+            SELECT
+               Central.SignalB(SB);
+               SB := crearSignal();
+            ELSE
+               DELAY 60.0;
+            END SELECT;
+         END LOOP;
+      END ProcesoA;
+
+      Task Body Central IS
+         menos_tres_min: bool := true;
+      BEGIN
+         ACCEPT SignalA(SA);
+
+         loop
+            SELECT
+               ACCEPT SignalA(SA);
+             OR
+               ACCEPT SignalB(SB);
+               Contador.start();
+               menos_tres_min := false;
+               WHILE(not(menos_tres_min)){
+                  SELECT
+                     WHEN(OutOfTime'Count = 0) =>
+                        ACCEPT SignalB(SB);
+                  OR
+                     ACCEPT OutOfTime() DO
+                        menos_tres_min := true;
+                     END OutOfTime;
+                  END SELECT;
+               }
+            END SELECT;
+         END LOOP;
+      END Central;
+
+   BEGIN
+      null;
+   END;
    ```
