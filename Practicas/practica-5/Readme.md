@@ -361,3 +361,105 @@
       null;
    END;
    ```
+
+4. En una clínica existe un médico de guardia que recibe continuamente peticiones de atención de las E enfermeras que trabajan en su piso y de las P personas que llegan a la clínica ser atendidos. Cuando una persona necesita que la atiendan espera a lo sumo 5 minutos a que el médico lo haga, si pasado ese tiempo no lo hace, espera 10 minutos y vuelve a requerir la atención del médico. Si no es atendida tres veces, se enoja y se retira de la clínica. Cuando una enfermera requiere la atención del médico, si este no lo atiende inmediatamente le hace una nota y se la deja en el consultorio para que esta resuelva su pedido en el momento que pueda (el pedido puede ser que el médico le firme algún papel). Cuando la petición ha sido recibida por el médico o la nota ha sido dejada en el escritorio, continúa trabajando y haciendo más peticiones. El médico atiende los pedidos dándole prioridad a los enfermos que llegan para ser atendidos. Cuando atiende un pedido, recibe la solicitud y la procesa durante un cierto tiempo. Cuando está libre aprovecha a procesar las notas dejadas por las enfermeras.
+
+```ada
+Process Clinica
+
+   TASK Medico IS
+      ENTRY pedidoPaciente(pedido: IN text);
+      ENTRY pedidoEnfermera(pedido: IN text);
+   END Medico;
+   
+   TASK Escritorio IS
+      ENTRY dejarNota(nota: IN text);
+      ENTRY recibirNotas(nota: IN OUT text);
+   END Escritorio;
+   
+   TASK TYPE Enfermera;
+   
+   TASK TYPE Persona;
+
+   arrEnfermeras: array(1..E) of Enfermera;
+   arrPersonas: array(1..P) of Persona;
+
+   TASK BODY Medico IS
+      trabajo: text;
+   BEGIN
+      LOOP
+         SELECT
+            ACCEPT pedidoPaciente(pedido: IN text) DO
+               trabajo := AtenderPaciente(pedido);
+            END pedidoPaciente;
+         OR
+            WHEN (pedidoPaciente'count = 0) =>
+               ACCEPT pedidoEnfermera(pedido: IN text) DO
+                  trabajo := AtenderEnfermera(pedido);
+               END pedidoEnfermera;
+         ELSE
+            SELECT
+               Escritorio.recibirNotas(trabajo);
+               trabajo := ProcesarNota(trabajo);
+            OR
+               null;
+            END SELECT;
+         END SELECT;
+      END LOOP;
+   END Medico;
+
+   TASK BODY Escritorio IS
+      trabajos: cola;
+   BEGIN
+      LOOP
+         SELECT
+            ACCEPT dejarNota(nota: IN text) DO
+               trabajos.push(nota);
+            END dejarNota;
+         OR
+            WHEN (not(trabajos.empty())) =>
+               ACCEPT recibirNotas(nota: IN OUT text) DO
+                  nota := trabajos.pop();
+               END recibirNotas;
+         END SELECT;
+      END LOOP;
+   END Escritorio;
+
+   TASK BODY Enfermera IS
+      pedido: text;
+   BEGIN
+      LOOP
+         pedido := GenerarPedido();
+         SELECT
+            Medico.pedidoEnfermera(pedido);
+         OR
+            Escritorio.dejarNota(pedido);
+         END SELECT;
+      END LOOP;
+   END Enfermera;
+
+   TASK BODY Persona IS
+      cantIntentos: int := 0;
+      continuar: bool := true;
+      pedido: text;
+   BEGIN
+      pedido := GenerarPedido();
+      WHILE (cantIntentos < 3) AND (continuar) LOOP
+         SELECT
+            Medico.pedidoPaciente(pedido);
+            continuar := false;
+         OR DELAY 300.0
+            cantIntentos := cantIntentos + 1;
+            IF (cantIntentos < 3) THEN
+               DELAY 600.0;
+            END IF;
+         END SELECT;
+      END LOOP;
+   END Persona;
+
+BEGIN
+   null;
+END;
+```
+
+5. 
