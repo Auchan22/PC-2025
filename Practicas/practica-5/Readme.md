@@ -545,3 +545,50 @@ BEGIN
    END LOOP;
 END;
 ```
+
+6. Se debe calcular el valor promedio de un vector de 1 millón de números enteros que se encuentra distribuido entre 10 procesos Worker (es decir, cada Worker tiene un vector de 100 mil números). Para ello, existe un Coordinador que determina el momento en que se debe realizar el cálculo de este promedio y que, además, se queda con el resultado. Nota: maximizar la concurrencia; este cálculo se hace una sola vez.
+
+```ada
+PROCESS Calculo IS
+
+   TASK TYPE Worker;
+
+   TASK Coordinador IS
+      ENTRY comenzar;
+      ENTRY finalizar(valor: IN integer);
+   END Coordinador;
+
+   arrW: array(1..10) of Worker;
+
+   TASK BODY Worker IS
+      arrN: array(1..100000) of integer := InicializarVector();
+      valor: integer := 0;
+   BEGIN
+      Coordinador.comenzar;
+      FOR i IN 1..100000 LOOP
+         valor := valor + arrN(i);
+      END LOOP;
+      Coordinador.finalizar(valor);
+   END Worker;
+
+   TASK BODY Coordinador IS
+      avg: float;
+      total: integer := 0;
+   BEGIN
+      FOR i IN 1..20 LOOP
+         SELECT
+            ACCEPT comenzar;
+         OR
+            ACCEPT finalizar(valor: IN integer) DO
+               total := total + valor;
+            END finalizar;
+         END SELECT;
+      END LOOP;
+      avg := (total / 1000000);
+   END Coordinador;
+BEGIN
+   null;
+END Calculo;
+```
+
+7. Hay un sistema de reconocimiento de huellas dactilares de la policía que tiene 8 Servidores para realizar el reconocimiento, cada uno de ellos trabajando con una Base de Datos propia; a su vez hay un Especialista que utiliza indefinidamente. El sistema funciona de la siguiente manera: el Especialista toma una imagen de una huella (TEST) y se la envía a los servidores para que cada uno de ellos le devuelva el código y el valor de similitud de la huella que más se asemeja a TEST en su BD; al final del procesamiento, el especialista debe conocer el código de la huella con mayor valor de similitud entre las devueltas por los 8 servidores. Cuando ha terminado de procesar una huella comienza nuevamente todo el ciclo. Nota: suponga que existe una función Buscar(test, código, valor) que utiliza cada Servidor donde recibe como parámetro de entrada la huella test, y devuelve como parámetros de salida el código y el valor de similitud de la huella más parecida a test en la BD correspondiente. Maximizar la concurrencia y no generar demora innecesaria.
