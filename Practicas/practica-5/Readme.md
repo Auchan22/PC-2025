@@ -463,3 +463,85 @@ END;
 ```
 
 5. En una playa hay 5 equipos de 4 personas cada uno (en total son 20 personas donde cada una conoce previamente a que equipo pertenece). Cuando las personas van llegando esperan con los de su equipo hasta que el mismo esté completo (hayan llegado los 4 integrantes), a partir de ese momento el equipo comienza a jugar. El juego consiste en que cada integrante del grupo junta 15 monedas de a una en una playa (las monedas pueden ser de 1, 2 o 5 pesos) y se suman los montos de las 60 monedas conseguidas en el grupo. Al finalizar cada persona debe conocer el grupo que más dinero junto. Nota: maximizar la concurrencia. Suponga que para simular la búsqueda de una moneda por parte de una persona existe una función Moneda() que retorna el valor de la moneda encontrada.
+
+```ada
+PROCESS Playa IS
+   TASK Admin IS
+   BEGIN
+      ENTRY CalcularGanador(idEquipo: IN integer; monto: IN integer);
+      ENTRY IdentificarGanador(ganador: OUT integer);
+   END Admin;
+
+   TASK TYPE Equipo IS
+   BEGIN
+      ENTRY recibirId(id: IN integer);
+      ENTRY llegada;
+      ENTRY comenzar;
+      ENTRY finalizar(monto: IN integer);
+   END Equipo;
+
+   TASK TYPE Persona;
+
+   arrEquipos: ARRAY(1..5) of Equipo;
+   arrPersonas: ARRAY(1..20) of Persona;
+
+   TASK BODY Admin IS
+      max: integer := -1;
+      maxEquipo: integer;
+   BEGIN
+      FOR i IN 1..5 LOOP
+         ACCEPT CalcularGanador(idEquipo: IN integer; monto: IN integer) DO
+            IF (monto > max) THEN
+               max := monto;
+               maxEquipo := idEquipo;
+            END IF;
+         END CalcularGanador;
+      END LOOP;
+      FOR i IN 1..20 LOOP
+         ACCEPT IdentificarGanador(ganador: OUT integer) DO
+            ganador := maxEquipo;
+         END IdentificarGanador;
+      END LOOP;
+   END Admin;
+
+   TASK BODY Equipo IS
+      idEquipo: integer;
+      montoTotal: integer := 0;
+   BEGIN
+      ACCEPT recibirId(id: IN integer) DO
+         idEquipo := id;
+      END recibirId;
+      FOR i IN 1..4 LOOP
+         ACCEPT llegada;
+      END LOOP;
+      FOR i IN 1..4 LOOP
+         ACCEPT comenzar;
+      END LOOP;
+      FOR i IN 1..4 LOOP
+         ACCEPT finalizar(monto: IN integer) DO
+            montoTotal := montoTotal + monto;
+         END finalizar;
+      END LOOP;
+      Admin.CalcularGanador(idEquipo, montoTotal);
+   END Equipo;
+
+   TASK BODY Persona IS
+      equipo: integer := ObtenerNroGrupo();
+      monto: integer := 0;
+      ganador: integer;
+   BEGIN
+      Equipo(equipo).llegada;
+      Equipo(equipo).comenzar;
+      FOR i IN 1..15 LOOP
+         monto := monto + Moneda();
+      END LOOP;
+      Equipo(equipo).finalizar(monto);
+      Admin.IdentificarGanador(ganador);
+   END Persona;
+
+BEGIN
+   FOR i IN 1..5 LOOP
+      arrEquipos(i).recibirId(i);
+   END LOOP;
+END;
+```
