@@ -597,7 +597,50 @@ END Calculo;
 PROCESS Sistema IS
 
    TASK TYPE Servidor IS
-   END;
+      ENTRY recibirHuella(huella: IN text);
+      ENTRY retornarResultado(valor: OUT float; codigo: OUT integer);
+   END Servidor;
+
+   TASK Especialista;
+
+   arrS: array(1..8) of Servidor;
+
+   TASK BODY Servidor IS
+      h: text;
+      v: float;
+      c: integer;
+   BEGIN
+      LOOP
+         ACCEPT recibirHuella(huella: IN text) DO
+            h := huella;
+         END recibirHuella;
+         Buscar(h, c, v);
+         ACCEPT retornarResultado(valor: OUT float; codigo: OUT integer) DO
+            valor := v;
+            codigo := c;
+         END retornarResultado;
+      END LOOP;
+   END Servidor;
+
+   TASK BODY Especialista IS
+      maxCodigo: integer := -1;
+      maxValor: float := 0.0;
+      h: text;
+      v : float;
+      c : integer;
+   BEGIN
+      h := TomarHuella();
+      FOR i IN 1..8 LOOP
+         arrS(i).recibirHuella(h);
+      END LOOP;
+      FOR i IN 1..8 LOOP
+         arrS(i).retornarResultado(v, c);
+         IF (v > maxValor) THEN
+            maxValor := v;
+            maxCodigo := c;
+         END IF;
+      END LOOP;
+   END Especialista;
 
 BEGIN
    null;
